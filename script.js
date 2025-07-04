@@ -1,8 +1,6 @@
 /* Get references to DOM elements */
 const categoryFilter = document.getElementById("categoryFilter");
 const productSearch = document.getElementById("productSearch");
-const languageToggle = document.getElementById("languageToggle");
-const languageText = document.getElementById("languageText");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
 const generateRoutineBtn = document.getElementById("generateRoutine");
@@ -263,7 +261,7 @@ productSearch.addEventListener("input", async (e) => {
   filterProducts();
 });
 
-/* RTL Language Toggle */
+/* RTL Language Toggle with enhanced language support */
 function toggleRTL() {
   isRTL = !isRTL;
   const html = document.documentElement;
@@ -271,45 +269,150 @@ function toggleRTL() {
   if (isRTL) {
     html.setAttribute("dir", "rtl");
     html.setAttribute("lang", "ar");
-    languageText.textContent = "English";
     document.title = "لوريال | مُنشئ الروتين الذكي ومستشار المنتجات";
+
+    // Update placeholder texts and interface elements for Arabic
+    updateInterfaceLanguage("ar");
   } else {
     html.setAttribute("dir", "ltr");
     html.setAttribute("lang", "en");
-    languageText.textContent = "عربي";
     document.title = "L'Oréal | Smart Routine & Product Advisor";
+
+    // Update placeholder texts and interface elements for English
+    updateInterfaceLanguage("en");
   }
 
   // Save RTL preference
   localStorage.setItem("loreal-rtl-mode", isRTL);
 }
 
-/* Load RTL preference */
-function loadRTLPreference() {
-  const savedRTL = localStorage.getItem("loreal-rtl-mode");
-  if (savedRTL === "true") {
-    toggleRTL();
+/* Update interface language text */
+function updateInterfaceLanguage(language) {
+  const productSearchInput = document.getElementById("productSearch");
+  const categorySelect = document.getElementById("categoryFilter");
+  const userInputField = document.getElementById("userInput");
+
+  if (language === "ar") {
+    // Arabic interface
+    if (productSearchInput) {
+      productSearchInput.placeholder = "ابحث عن المنتجات...";
+    }
+    if (userInputField) {
+      userInputField.placeholder = "اكتب رسالتك هنا...";
+    }
+    // Update category options for Arabic
+    updateCategoryOptions("ar");
+  } else {
+    // English interface
+    if (productSearchInput) {
+      productSearchInput.placeholder = "Search products...";
+    }
+    if (userInputField) {
+      userInputField.placeholder = "Type your message here...";
+    }
+    // Update category options for English
+    updateCategoryOptions("en");
   }
 }
 
-/* Language toggle event listener */
-languageToggle.addEventListener("click", toggleRTL);
+/* Update category dropdown options based on language */
+function updateCategoryOptions(language) {
+  const categorySelect = document.getElementById("categoryFilter");
+  if (!categorySelect) return;
+
+  if (language === "ar") {
+    categorySelect.innerHTML = `
+      <option value="" disabled selected>اختر فئة</option>
+      <option value="cleanser">منظفات</option>
+      <option value="moisturizer,skincare">مرطبات وعلاجات</option>
+      <option value="haircare">العناية بالشعر</option>
+      <option value="makeup">المكياج</option>
+      <option value="hair color">صبغة الشعر</option>
+      <option value="hair styling">تصفيف الشعر</option>
+      <option value="men's grooming">العناية الرجالية</option>
+      <option value="suncare">الحماية من الشمس</option>
+      <option value="fragrance">العطور</option>
+    `;
+  } else {
+    categorySelect.innerHTML = `
+      <option value="" disabled selected>Choose a Category</option>
+      <option value="cleanser">Cleansers</option>
+      <option value="moisturizer,skincare">Moisturizers & Treatments</option>
+      <option value="haircare">Haircare</option>
+      <option value="makeup">Makeup</option>
+      <option value="hair color">Hair Color</option>
+      <option value="hair styling">Hair Styling</option>
+      <option value="men's grooming">Men's Grooming</option>
+      <option value="suncare">Suncare</option>
+      <option value="fragrance">Fragrance</option>
+    `;
+  }
+}
+
+/* Detect browser language and auto-set RTL for Arabic speakers */
+function detectAndSetLanguage() {
+  const savedRTL = localStorage.getItem("loreal-rtl-mode");
+
+  // If user has previously set a preference, use that
+  if (savedRTL !== null) {
+    if (savedRTL === "true") {
+      toggleRTL();
+    }
+    return;
+  }
+
+  // Auto-detect browser language for first-time visitors
+  const userLanguages = navigator.languages || [
+    navigator.language || navigator.userLanguage,
+  ];
+  const isArabicSpeaker = userLanguages.some((lang) => {
+    const langCode = lang.toLowerCase();
+    return (
+      langCode.startsWith("ar") || // Arabic
+      langCode.startsWith("he") || // Hebrew
+      langCode.startsWith("fa") || // Persian/Farsi
+      langCode.startsWith("ur") || // Urdu
+      langCode.startsWith("ku") || // Kurdish
+      langCode.startsWith("ps") || // Pashto
+      langCode.startsWith("sd") || // Sindhi
+      langCode.startsWith("ug") // Uyghur
+    );
+  });
+
+  if (isArabicSpeaker) {
+    toggleRTL();
+    console.log("Auto-detected RTL language preference");
+
+    // Show a subtle notification that language was auto-detected
+    setTimeout(() => {
+      addMessageToChat(
+        "assistant",
+        "تم اكتشاف اللغة العربية تلقائياً. يمكنك تغيير اللغة باستخدام الزر أعلى اليمين. | Arabic language auto-detected. You can change language using the button in the top right."
+      );
+    }, 1000);
+  }
+}
+
+/* Load RTL preference (keeping old function name for compatibility) */
+function loadRTLPreference() {
+  detectAndSetLanguage();
+}
 
 /* Generate routine using OpenAI API with web search capability */
 async function generateRoutine() {
   if (selectedProducts.length === 0) {
-    addMessageToChat(
-      "assistant",
-      "Please select some products first to generate a routine!"
-    );
+    const message = isRTL
+      ? "يرجى اختيار بعض المنتجات أولاً لإنشاء روتين!"
+      : "Please select some products first to generate a routine!";
+    addMessageToChat("assistant", message);
     return;
   }
 
   // Show loading message
-  addMessageToChat(
-    "assistant",
-    "Generating your personalized routine with current L'Oréal insights... ✨"
-  );
+  const loadingMessage = isRTL
+    ? "جاري إنشاء روتينك الشخصي مع أحدث رؤى لوريال... ✨"
+    : "Generating your personalized routine with current L'Oréal insights... ✨";
+  addMessageToChat("assistant", loadingMessage);
 
   try {
     // Prepare the product data for the API
@@ -321,11 +424,17 @@ async function generateRoutine() {
     }));
 
     // Create the prompt for OpenAI with web search capability
-    const systemPrompt = `You are a beauty and skincare expert with access to current information. Create a personalized routine using the provided products. Include the order of use, application tips, and timing (morning/evening). Also search for any recent L'Oréal product updates, reviews, or application techniques. Include current information and cite any sources you find.`;
+    const systemPrompt = isRTL
+      ? `أنت خبير جمال وعناية بالبشرة مع إمكانية الوصول إلى المعلومات الحالية. قم بإنشاء روتين شخصي باستخدام المنتجات المقدمة. قم بتضمين ترتيب الاستخدام ونصائح التطبيق والتوقيت (صباحي/مسائي). ابحث أيضاً عن أي تحديثات منتجات لوريال الحديثة أو المراجعات أو تقنيات التطبيق. قم بتضمين المعلومات الحالية واذكر أي مصادر تجدها. يرجى الرد باللغة العربية.`
+      : `You are a beauty and skincare expert with access to current information. Create a personalized routine using the provided products. Include the order of use, application tips, and timing (morning/evening). Also search for any recent L'Oréal product updates, reviews, or application techniques. Include current information and cite any sources you find.`;
 
-    const userPrompt = `Create a personalized beauty routine using these products: ${JSON.stringify(
-      productInfo
-    )}. Please also search for any current information about these specific products, application techniques, or recent reviews that might help optimize the routine.`;
+    const userPrompt = isRTL
+      ? `قم بإنشاء روتين جمال شخصي باستخدام هذه المنتجات: ${JSON.stringify(
+          productInfo
+        )}. يرجى أيضاً البحث عن أي معلومات حالية حول هذه المنتجات المحددة أو تقنيات التطبيق أو المراجعات الحديثة التي قد تساعد في تحسين الروتين. يرجى الرد باللغة العربية.`
+      : `Create a personalized beauty routine using these products: ${JSON.stringify(
+          productInfo
+        )}. Please also search for any current information about these specific products, application techniques, or recent reviews that might help optimize the routine.`;
 
     // Make API call to OpenAI via Cloudflare Worker with web search
     const response = await fetch(
@@ -401,10 +510,10 @@ async function generateRoutine() {
   } catch (error) {
     console.error("Error generating routine:", error);
     chatWindow.innerHTML = "";
-    addMessageToChat(
-      "assistant",
-      "Sorry, I couldn't generate a routine right now. Please check your connection and try again."
-    );
+    const errorMessage = isRTL
+      ? "عذراً، لا يمكنني إنشاء روتين الآن. يرجى التحقق من اتصالك والمحاولة مرة أخرى."
+      : "Sorry, I couldn't generate a routine right now. Please check your connection and try again.";
+    addMessageToChat("assistant", errorMessage);
   }
 }
 
@@ -536,11 +645,15 @@ generateRoutineBtn.addEventListener("click", generateRoutine);
 /* Initialize the app */
 document.addEventListener("DOMContentLoaded", () => {
   loadSelectedProductsFromStorage();
-  loadRTLPreference();
+  loadRTLPreference(); // This now includes auto-detection
 
-  // Add initial welcome message
-  addMessageToChat(
-    "assistant",
-    "Hi! I'm your L'Oréal beauty assistant with access to current beauty trends and product information. Select some products above and click 'Generate Routine' to get started, or ask me any beauty-related questions!"
-  );
+  // Apply initial language settings to interface
+  updateInterfaceLanguage(isRTL ? "ar" : "en");
+
+  // Add initial welcome message (language-appropriate)
+  const welcomeMessage = isRTL
+    ? "مرحباً! أنا مساعد الجمال من لوريال مع إمكانية الوصول إلى أحدث اتجاهات الجمال ومعلومات المنتجات. اختر بعض المنتجات أعلاه واضغط على 'إنشاء روتين' للبدء، أو اسألني أي أسئلة متعلقة بالجمال!"
+    : "Hi! I'm your L'Oréal beauty assistant with access to current beauty trends and product information. Select some products above and click 'Generate Routine' to get started, or ask me any beauty-related questions!";
+
+  addMessageToChat("assistant", welcomeMessage);
 });
