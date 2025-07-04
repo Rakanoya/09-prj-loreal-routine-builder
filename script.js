@@ -1,19 +1,37 @@
-/* Get references to DOM elements */
-const categoryFilter = document.getElementById("categoryFilter");
-const productSearch = document.getElementById("productSearch");
-const productsContainer = document.getElementById("productsContainer");
-const selectedProductsList = document.getElementById("selectedProductsList");
-const generateRoutineBtn = document.getElementById("generateRoutine");
-const chatForm = document.getElementById("chatForm");
-const chatWindow = document.getElementById("chatWindow");
-const userInput = document.getElementById("userInput");
+/* Get references to DOM elements - will be initialized after DOM loads */
+let categoryFilter;
+let productSearch;
+let productsContainer;
+let selectedProductsList;
+let generateRoutineBtn;
+let chatForm;
+let chatWindow;
+let userInput;
 
 /* Modal elements */
-const descriptionModal = document.getElementById("descriptionModal");
-const modalProductName = document.getElementById("modalProductName");
-const modalBrandName = document.getElementById("modalBrandName");
-const modalDescription = document.getElementById("modalDescription");
-const closeModalBtn = document.getElementById("closeModal");
+let descriptionModal;
+let modalProductName;
+let modalBrandName;
+let modalDescription;
+let closeModalBtn;
+
+/* Initialize DOM references after DOM is loaded */
+function initializeDOMReferences() {
+  categoryFilter = document.getElementById("categoryFilter");
+  productSearch = document.getElementById("productSearch");
+  productsContainer = document.getElementById("productsContainer");
+  selectedProductsList = document.getElementById("selectedProductsList");
+  generateRoutineBtn = document.getElementById("generateRoutine");
+  chatForm = document.getElementById("chatForm");
+  chatWindow = document.getElementById("chatWindow");
+  userInput = document.getElementById("userInput");
+  
+  descriptionModal = document.getElementById("descriptionModal");
+  modalProductName = document.getElementById("modalProductName");
+  modalBrandName = document.getElementById("modalBrandName");
+  modalDescription = document.getElementById("modalDescription");
+  closeModalBtn = document.getElementById("closeModal");
+}
 
 /* Global variables to store data and state */
 let allProducts = [];
@@ -25,28 +43,55 @@ let currentCategoryFilter = "";
 let isRTL = false;
 
 /* Show initial placeholder until user selects a category */
-productsContainer.innerHTML = `
-  <div class="placeholder-message">
-    Select a category to view products
-  </div>
-`;
+function showInitialPlaceholder() {
+  if (productsContainer) {
+    productsContainer.innerHTML = `
+      <div class="placeholder-message">
+        Select a category to view products
+      </div>
+    `;
+  }
+}
 
 /* Load product data from JSON file */
 async function loadProducts() {
   if (allProducts.length === 0) {
-    const response = await fetch("products.json");
-    const data = await response.json();
-    allProducts = data.products;
+    try {
+      const response = await fetch("products.json");
+      if (!response.ok) {
+        throw new Error(`Failed to load products: ${response.status}`);
+      }
+      const data = await response.json();
+      allProducts = data.products;
+    } catch (error) {
+      console.error("Error loading products:", error);
+      // Show error message to user
+      if (productsContainer) {
+        productsContainer.innerHTML = `
+          <div class="placeholder-message">
+            Error loading products. Please refresh the page to try again.
+          </div>
+        `;
+      }
+      return [];
+    }
   }
   return allProducts;
 }
 
 /* Load selected products from localStorage on page load */
 function loadSelectedProductsFromStorage() {
-  const saved = localStorage.getItem("loreal-selected-products");
-  if (saved) {
-    selectedProducts = JSON.parse(saved);
-    updateSelectedProductsDisplay();
+  try {
+    const saved = localStorage.getItem("loreal-selected-products");
+    if (saved) {
+      selectedProducts = JSON.parse(saved);
+      updateSelectedProductsDisplay();
+    }
+  } catch (error) {
+    console.warn("Error loading selected products from storage:", error);
+    // Clear corrupted data
+    localStorage.removeItem("loreal-selected-products");
+    selectedProducts = [];
   }
 }
 
@@ -111,6 +156,8 @@ function updateProductCardSelection() {
 
 /* Update the selected products display area */
 function updateSelectedProductsDisplay() {
+  if (!selectedProductsList) return;
+  
   if (selectedProducts.length === 0) {
     selectedProductsList.innerHTML = `
       <div class="empty-selection-message">
@@ -118,7 +165,9 @@ function updateSelectedProductsDisplay() {
       </div>
     `;
     // Remove pulse animation when no products selected
-    generateRoutineBtn.classList.remove("pulse");
+    if (generateRoutineBtn) {
+      generateRoutineBtn.classList.remove("pulse");
+    }
     return;
   }
 
@@ -143,13 +192,17 @@ function updateSelectedProductsDisplay() {
   `;
 
   // Add pulse animation when products are selected
-  generateRoutineBtn.classList.add("pulse");
+  if (generateRoutineBtn) {
+    generateRoutineBtn.classList.add("pulse");
+  }
 }
 
 /* Show product description in modal */
 function showDescriptionModal(productId) {
   const product = allProducts.find((p) => p.id === productId);
-  if (!product) return;
+  if (!product || !descriptionModal || !modalProductName || !modalBrandName || !modalDescription) {
+    return;
+  }
 
   modalProductName.textContent = product.name;
   modalBrandName.textContent = product.brand;
@@ -163,6 +216,8 @@ function showDescriptionModal(productId) {
 
 /* Close modal */
 function closeDescriptionModal() {
+  if (!descriptionModal) return;
+  
   descriptionModal.classList.remove("show");
 
   // Restore body scroll
@@ -170,14 +225,20 @@ function closeDescriptionModal() {
 }
 
 /* Modal event listeners */
-closeModalBtn.addEventListener("click", closeDescriptionModal);
-
-/* Close modal when clicking on overlay */
-descriptionModal.addEventListener("click", (e) => {
-  if (e.target === descriptionModal) {
-    closeDescriptionModal();
+function initializeModalEventListeners() {
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener("click", closeDescriptionModal);
   }
-});
+
+  /* Close modal when clicking on overlay */
+  if (descriptionModal) {
+    descriptionModal.addEventListener("click", (e) => {
+      if (e.target === descriptionModal) {
+        closeDescriptionModal();
+      }
+    });
+  }
+}
 
 /* Close modal with escape key */
 document.addEventListener("keydown", (e) => {
@@ -188,6 +249,8 @@ document.addEventListener("keydown", (e) => {
 
 /* Create HTML for displaying product cards */
 function displayProducts(products) {
+  if (!productsContainer) return;
+  
   if (products.length === 0) {
     productsContainer.innerHTML = `
       <div class="placeholder-message">
@@ -248,18 +311,26 @@ function filterProducts() {
 }
 
 /* Filter and display products when category changes */
-categoryFilter.addEventListener("change", async (e) => {
-  await loadProducts();
-  currentCategoryFilter = e.target.value;
-  filterProducts();
-});
+function initializeCategoryFilter() {
+  if (categoryFilter) {
+    categoryFilter.addEventListener("change", async (e) => {
+      await loadProducts();
+      currentCategoryFilter = e.target.value;
+      filterProducts();
+    });
+  }
+}
 
 /* Filter products as user types in search */
-productSearch.addEventListener("input", async (e) => {
-  await loadProducts();
-  currentSearchTerm = e.target.value;
-  filterProducts();
-});
+function initializeProductSearch() {
+  if (productSearch) {
+    productSearch.addEventListener("input", async (e) => {
+      await loadProducts();
+      currentSearchTerm = e.target.value;
+      filterProducts();
+    });
+  }
+}
 
 /* RTL Language Toggle with enhanced language support */
 function toggleRTL() {
@@ -691,6 +762,8 @@ async function generateRoutine() {
 
 /* Add message to chat window */
 function addMessageToChat(role, content) {
+  if (!chatWindow) return;
+  
   const messageDiv = document.createElement("div");
   messageDiv.className = `chat-message ${role}`;
 
@@ -709,6 +782,8 @@ function addMessageToChat(role, content) {
 
 /* Show AI loading indicator */
 function showAILoading(message = "L'Oréal Assistant is thinking...") {
+  if (!chatWindow) return;
+  
   const loadingDiv = document.createElement("div");
   loadingDiv.className = "ai-loading";
   loadingDiv.id = "ai-loading-indicator";
@@ -855,24 +930,48 @@ async function handleChatMessage(message) {
 }
 
 /* Chat form submission handler */
-chatForm.addEventListener("submit", (e) => {
-  e.preventDefault();
+function initializeChatForm() {
+  if (chatForm) {
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
 
-  const message = userInput.value.trim();
-  if (!message) return;
+      const message = userInput ? userInput.value.trim() : "";
+      if (!message) return;
 
-  // Clear input
-  userInput.value = "";
+      // Clear input
+      if (userInput) {
+        userInput.value = "";
+      }
 
-  // Handle the message
-  handleChatMessage(message);
-});
+      // Handle the message
+      handleChatMessage(message);
+    });
+  }
+}
 
 /* Generate routine button handler */
-generateRoutineBtn.addEventListener("click", generateRoutine);
+function initializeGenerateRoutineBtn() {
+  if (generateRoutineBtn) {
+    generateRoutineBtn.addEventListener("click", generateRoutine);
+  }
+}
 
 /* Initialize the app */
 document.addEventListener("DOMContentLoaded", () => {
+  // Initialize DOM references first
+  initializeDOMReferences();
+  
+  // Initialize event listeners
+  initializeModalEventListeners();
+  initializeCategoryFilter();
+  initializeProductSearch();
+  initializeChatForm();
+  initializeGenerateRoutineBtn();
+  
+  // Show initial placeholder
+  showInitialPlaceholder();
+  
+  // Load saved data and preferences
   loadSelectedProductsFromStorage();
   loadRTLPreference(); // This now includes auto-detection
   loadConversationHistory(); // Load previous conversations
