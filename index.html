@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,24 +19,47 @@
     <div class="page-wrapper">
       <!------- Header / Branding ------->
       <header class="site-header">
+        <div class="language-toggle">
+          <button
+            id="languageToggle"
+            class="language-btn"
+            title="Toggle RTL/LTR"
+          >
+            <i class="fa-solid fa-globe"></i>
+            <span id="languageText">عربي</span>
+          </button>
+        </div>
         <img src="img/loreal-logo.png" alt="L'Oréal Logo" class="logo" />
         <h1 class="site-title">Smart Routine &amp; Product Advisor</h1>
       </header>
 
-      <!-- Category Filter -->
-      <div class="search-section">
-        <select id="categoryFilter">
-          <option value="" disabled selected>Choose a Category</option>
-          <option value="cleanser">Cleansers</option>
-          <option value="moisturizer">Moisturizers & Treatments</option>
-          <option value="haircare">Haircare</option>
-          <option value="makeup">Makeup</option>
-          <option value="hair color">Hair Color</option>
-          <option value="hair styling">Hair Styling</option>
-          <option value="men's grooming">Men's Grooming</option>
-          <option value="suncare">Suncare</option>
-          <option value="fragrance">Fragrance</option>
-        </select>
+      <!-- Category Filter and Search -->
+      <div class="filters-section">
+        <div class="search-section">
+          <select id="categoryFilter">
+            <option value="" disabled selected>Choose a Category</option>
+            <option value="cleanser">Cleansers</option>
+            <option value="moisturizer,skincare">
+              Moisturizers & Treatments
+            </option>
+            <option value="haircare">Haircare</option>
+            <option value="makeup">Makeup</option>
+            <option value="hair color">Hair Color</option>
+            <option value="hair styling">Hair Styling</option>
+            <option value="men's grooming">Men's Grooming</option>
+            <option value="suncare">Suncare</option>
+            <option value="fragrance">Fragrance</option>
+          </select>
+        </div>
+        <div class="product-search-section">
+          <input
+            type="text"
+            id="productSearch"
+            placeholder="Search products by name or keyword..."
+            autocomplete="off"
+          />
+          <i class="fa-solid fa-search search-icon"></i>
+        </div>
       </div>
 
       <!-- Products Grid -->
@@ -85,8 +108,27 @@
       </footer>
     </div>
 
-    <!-- secrets.js can be removed when using Cloudflare Workers for API requests -->
-    <script src="secrets.js"></script>
+    <!-- Product Description Modal -->
+    <div id="descriptionModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h3 id="modalProductName">Product Name</h3>
+            <span class="brand-name" id="modalBrandName">Brand Name</span>
+          </div>
+          <button class="modal-close" id="closeModal">
+            <i class="fa-solid fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-description" id="modalDescription">
+            Product description will appear here...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Using Cloudflare Worker for API requests -->
     <script src="script.js"></script>
   </body>
 </html>
