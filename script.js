@@ -408,11 +408,11 @@ async function generateRoutine() {
     return;
   }
 
-  // Show loading message
+  // Show loading indicator
   const loadingMessage = isRTL
     ? "جاري إنشاء روتينك الشخصي مع أحدث رؤى لوريال... ✨"
     : "Generating your personalized routine with current L'Oréal insights... ✨";
-  addMessageToChat("assistant", loadingMessage);
+  showAILoading(loadingMessage);
 
   try {
     // Prepare the product data for the API
@@ -492,8 +492,8 @@ async function generateRoutine() {
     // Store the routine for follow-up questions
     currentRoutine = routine;
 
-    // Clear the loading message and add the routine
-    chatWindow.innerHTML = "";
+    // Hide loading indicator and add the routine
+    hideAILoading();
     addMessageToChat("assistant", routine);
 
     // Add this to conversation history
@@ -509,7 +509,7 @@ async function generateRoutine() {
     });
   } catch (error) {
     console.error("Error generating routine:", error);
-    chatWindow.innerHTML = "";
+    hideAILoading();
     const errorMessage = isRTL
       ? "عذراً، لا يمكنني إنشاء روتين الآن. يرجى التحقق من اتصالك والمحاولة مرة أخرى."
       : "Sorry, I couldn't generate a routine right now. Please check your connection and try again.";
@@ -535,10 +535,43 @@ function addMessageToChat(role, content) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+/* Show AI loading indicator */
+function showAILoading(message = "L'Oréal Assistant is thinking...") {
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "ai-loading";
+  loadingDiv.id = "ai-loading-indicator";
+
+  loadingDiv.innerHTML = `
+    <i class="fa-solid fa-robot"></i>
+    <span class="ai-loading-text">${message}</span>
+    <div class="loading-dots">
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+    </div>
+  `;
+
+  chatWindow.appendChild(loadingDiv);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+/* Hide AI loading indicator */
+function hideAILoading() {
+  const loadingIndicator = document.getElementById("ai-loading-indicator");
+  if (loadingIndicator) {
+    loadingIndicator.remove();
+  }
+}
+
 /* Handle follow-up chat questions with web search */
 async function handleChatMessage(message) {
   // Add user message to chat
   addMessageToChat("user", message);
+
+  // Show loading indicator
+  showAILoading(
+    isRTL ? "مساعد لوريال يفكر..." : "L'Oréal Assistant is thinking..."
+  );
 
   // Add user message to conversation history
   conversationHistory.push({
@@ -608,7 +641,8 @@ async function handleChatMessage(message) {
     const data = await response.json();
     const assistantMessage = data.choices[0].message.content;
 
-    // Add assistant response to chat
+    // Hide loading indicator and add assistant response to chat
+    hideAILoading();
     addMessageToChat("assistant", assistantMessage);
 
     // Add to conversation history
@@ -618,10 +652,11 @@ async function handleChatMessage(message) {
     });
   } catch (error) {
     console.error("Error in chat:", error);
-    addMessageToChat(
-      "assistant",
-      "Sorry, I'm having trouble responding right now. Please check your connection and try again."
-    );
+    hideAILoading();
+    const errorMessage = isRTL
+      ? "عذراً، أواجه مشكلة في الاستجابة الآن. يرجى التحقق من اتصالك والمحاولة مرة أخرى."
+      : "Sorry, I'm having trouble responding right now. Please check your connection and try again.";
+    addMessageToChat("assistant", errorMessage);
   }
 }
 

@@ -615,6 +615,60 @@ body {
   pointer-events: none;
 }
 
+/* AI Loading Indicator */
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: #fff3e0;
+  border-left: 4px solid #ff6f00;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-style: italic;
+  color: #666;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6f00;
+  animation: loadingPulse 1.4s ease-in-out infinite both;
+}
+
+.loading-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.loading-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+.loading-dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+@keyframes loadingPulse {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ai-loading-text {
+  font-size: 14px;
+}
+
 /* RTL Language Support */
 [dir="rtl"] {
   text-align: right;
