@@ -398,6 +398,177 @@ function loadRTLPreference() {
   detectAndSetLanguage();
 }
 
+/* Validate if user message is beauty/skincare related */
+function isMessageOnTopic(message) {
+  const beautyKeywords = [
+    // Beauty and skincare
+    "skin",
+    "skincare",
+    "routine",
+    "cleanser",
+    "moisturizer",
+    "serum",
+    "cream",
+    "lotion",
+    "acne",
+    "wrinkle",
+    "aging",
+    "anti-aging",
+    "SPF",
+    "sunscreen",
+    "face",
+    "facial",
+    "exfoliate",
+    "toner",
+    "mask",
+    "pore",
+    "oil",
+    "dry",
+    "sensitive",
+    "combination",
+
+    // Makeup
+    "makeup",
+    "foundation",
+    "concealer",
+    "lipstick",
+    "eyeshadow",
+    "mascara",
+    "blush",
+    "bronzer",
+    "highlighter",
+    "lip",
+    "eye",
+    "brow",
+    "lash",
+    "powder",
+    "primer",
+
+    // Hair
+    "hair",
+    "shampoo",
+    "conditioner",
+    "styling",
+    "color",
+    "dye",
+    "treatment",
+    "scalp",
+    "curl",
+    "straight",
+    "volume",
+    "texture",
+    "split",
+    "damage",
+    "repair",
+
+    // Fragrance
+    "perfume",
+    "fragrance",
+    "scent",
+    "cologne",
+    "spray",
+    "eau de toilette",
+    "eau de parfum",
+
+    // L'Oréal and beauty brands
+    "loreal",
+    "l'oreal",
+    "cerave",
+    "lancome",
+    "maybelline",
+    "garnier",
+    "redken",
+    "kiehl",
+    "urban decay",
+    "ysl",
+    "giorgio armani",
+
+    // General beauty terms
+    "beauty",
+    "cosmetic",
+    "application",
+    "apply",
+    "use",
+    "how to",
+    "recommend",
+    "routine",
+    "step",
+    "order",
+    "morning",
+    "evening",
+    "daily",
+    "weekly",
+
+    // Arabic beauty terms (for RTL support)
+    "جمال",
+    "بشرة",
+    "عناية",
+    "روتين",
+    "مكياج",
+    "شعر",
+    "عطر",
+    "منظف",
+    "مرطب",
+  ];
+
+  const messageLower = message.toLowerCase();
+  return beautyKeywords.some((keyword) =>
+    messageLower.includes(keyword.toLowerCase())
+  );
+}
+
+/* Save conversation history to localStorage */
+function saveConversationHistory() {
+  try {
+    localStorage.setItem(
+      "loreal-conversation-history",
+      JSON.stringify(conversationHistory)
+    );
+  } catch (error) {
+    console.warn("Could not save conversation history:", error);
+  }
+}
+
+/* Load conversation history from localStorage */
+function loadConversationHistory() {
+  try {
+    const saved = localStorage.getItem("loreal-conversation-history");
+    if (saved) {
+      conversationHistory = JSON.parse(saved);
+      // Restore conversation display
+      restoreConversationDisplay();
+    }
+  } catch (error) {
+    console.warn("Could not load conversation history:", error);
+    conversationHistory = [];
+  }
+}
+
+/* Restore conversation display from history */
+function restoreConversationDisplay() {
+  // Don't restore if there's already content in the chat window
+  if (chatWindow.children.length > 0) return;
+
+  conversationHistory.forEach((message) => {
+    if (message.role === "user" || message.role === "assistant") {
+      addMessageToChat(message.role, message.content);
+    }
+  });
+}
+
+/* Get optimized conversation history for API calls */
+function getConversationHistory() {
+  // Keep system messages and recent user/assistant messages
+  const systemMessages = conversationHistory.filter(
+    (msg) => msg.role === "system"
+  );
+  const recentMessages = conversationHistory
+    .filter((msg) => msg.role !== "system")
+    .slice(-8); // Keep last 8 user/assistant messages
+
+  return [...systemMessages, ...recentMessages];
+}
+
 /* Generate routine using OpenAI API with web search capability */
 async function generateRoutine() {
   if (selectedProducts.length === 0) {
@@ -496,7 +667,7 @@ async function generateRoutine() {
     hideAILoading();
     addMessageToChat("assistant", routine);
 
-    // Add this to conversation history
+    // Add this to conversation history and save
     conversationHistory.push({
       role: "system",
       content: `Generated routine for products: ${selectedProducts
@@ -507,6 +678,7 @@ async function generateRoutine() {
       role: "assistant",
       content: routine,
     });
+    saveConversationHistory();
   } catch (error) {
     console.error("Error generating routine:", error);
     hideAILoading();
@@ -563,7 +735,19 @@ function hideAILoading() {
   }
 }
 
+/* Handle follow-up chat questions with web search and topic validation */
 async function handleChatMessage(message) {
+  // Validate if message is on-topic
+  if (!isMessageOnTopic(message)) {
+    const offTopicMessage = isRTL
+      ? "عذراً، أنا مساعد جمال لوريال وأستطيع فقط الإجابة على الأسئلة المتعلقة بالجمال والعناية بالبشرة والشعر والمكياج والعطور ومنتجات لوريال. هل يمكنك طرح سؤال متعلق بالجمال؟"
+      : "I'm sorry, I'm a L'Oréal beauty assistant and I can only help with questions about beauty, skincare, haircare, makeup, fragrance, and L'Oréal products. Could you please ask a beauty-related question?";
+
+    addMessageToChat("user", message);
+    addMessageToChat("assistant", offTopicMessage);
+    return;
+  }
+
   // Add user message to chat
   addMessageToChat("user", message);
 
@@ -578,57 +762,36 @@ async function handleChatMessage(message) {
     content: message,
   });
 
-  // Detect obvious off-topic questions
-  const offTopicKeywords = [
-    "weather", "news", "politics", "sports", "movie", "music", "stocks",
-    "celebrity", "car", "gpt", "openai", "ai model", "game", "travel", "flight"
-  ];
-
-  const isOffTopic = offTopicKeywords.some((word) =>
-    message.toLowerCase().includes(word)
-  );
-
-  if (isOffTopic) {
-    hideAILoading();
-    const redirectMessage = isRTL
-      ? "أنا هنا لمساعدتك في الأسئلة المتعلقة بالجمال ومنتجات لوريال فقط. هل ترغب في مناقشة روتينك أو أي منتج محدد؟"
-      : "I'm here to help with beauty-related questions and L'Oréal products only. Would you like to discuss your routine or a specific product?";
-    addMessageToChat("assistant", redirectMessage);
-    return;
-  }
-
   try {
-    // Build context-aware system prompt
-    let systemPrompt = `You are a L'Oréal beauty assistant. 
-Only answer questions related to beauty routines, skincare, haircare, makeup, fragrance, or the selected L'Oréal products. 
-If the question is off-topic, remind the user to stay focused. 
-Keep answers concise, relevant, and grounded in product use. Include citations if using current sources.`;
+    // Create context-aware prompt with strict beauty focus
+    let systemPrompt = isRTL
+      ? `أنت مساعد خبير في الجمال والعناية بالبشرة من لوريال مع إمكانية الوصول إلى معلومات الويب الحالية. أجب فقط على الأسئلة المتعلقة بروتين الجمال والعناية بالبشرة والشعر والمكياج والعطور والمنتجات ذات الصلة. ابحث عن المعلومات الحالية عند الحاجة، خاصة لمنتجات لوريال. حافظ على الإجابات مفيدة ومختصرة. قم بتضمين الاستشهادات لأي معلومات حالية تجدها. إذا تم طرح سؤال غير متعلق بالجمال، فذكر بأدب أنك يمكنك فقط المساعدة في المواضيع المتعلقة بالجمال. يرجى الرد باللغة العربية.`
+      : `You are a L'Oréal beauty and skincare expert assistant with access to current web information. Answer ONLY questions about beauty routines, skincare, haircare, makeup, fragrance, and related products. Search for current information when relevant, especially for L'Oréal products. Keep responses helpful and concise. Include citations for any current information you find. If asked about non-beauty topics, politely remind that you can only help with beauty-related topics.`;
 
     if (currentRoutine) {
-      systemPrompt += ` The user has generated a routine using the following products: ${selectedProducts
-        .map((p) => `${p.name} (${p.brand})`)
-        .join(", ")}. Focus your responses around these products and the routine.`;
+      const routineContext = isRTL
+        ? ` لقد أنشأ المستخدم روتيناً مع هذه المنتجات: ${selectedProducts
+            .map((p) => p.name)
+            .join(
+              ", "
+            )}. يمكنك الرجوع إلى هذا الروتين وهذه المنتجات في إجاباتك.`
+        : ` The user has generated a routine with these products: ${selectedProducts
+            .map((p) => p.name)
+            .join(
+              ", "
+            )}. You can reference this routine and these products in your answers.`;
+
+      systemPrompt += routineContext;
     }
 
-    // Build contextual messages with product reminder
-    const memory = conversationHistory.slice(-10).filter(msg => msg.role !== "system");
-
-    const memorySummary = memory.map((msg, index) => {
-      const speaker = msg.role === "user" ? "User" : "Assistant";
-      return `${speaker}: ${msg.content}`;
-    }).join("\n");
-
-    const contextReminder = {
-      role: "system",
-      content: `Ongoing conversation context:\n${memorySummary}`,
-    };
-
+    // Use optimized conversation history
     const messages = [
       { role: "system", content: systemPrompt },
-      contextReminder,
+      ...getConversationHistory().slice(-8), // Use the optimized history function
       { role: "user", content: message },
     ];
 
+    // Make API call via Cloudflare Worker with web search
     const response = await fetch(
       "https://crimson-feather-5898.horseykate1129.workers.dev/",
       {
@@ -671,15 +834,16 @@ Keep answers concise, relevant, and grounded in product use. Include citations i
     const data = await response.json();
     const assistantMessage = data.choices[0].message.content;
 
-    // Display assistant response
+    // Hide loading indicator and add assistant response to chat
     hideAILoading();
     addMessageToChat("assistant", assistantMessage);
 
-    // Add to conversation history
+    // Add to conversation history and save
     conversationHistory.push({
       role: "assistant",
       content: assistantMessage,
     });
+    saveConversationHistory();
   } catch (error) {
     console.error("Error in chat:", error);
     hideAILoading();
@@ -697,7 +861,10 @@ chatForm.addEventListener("submit", (e) => {
   const message = userInput.value.trim();
   if (!message) return;
 
+  // Clear input
   userInput.value = "";
+
+  // Handle the message
   handleChatMessage(message);
 });
 
@@ -707,12 +874,19 @@ generateRoutineBtn.addEventListener("click", generateRoutine);
 /* Initialize the app */
 document.addEventListener("DOMContentLoaded", () => {
   loadSelectedProductsFromStorage();
-  loadRTLPreference();
+  loadRTLPreference(); // This now includes auto-detection
+  loadConversationHistory(); // Load previous conversations
+
+  // Apply initial language settings to interface
   updateInterfaceLanguage(isRTL ? "ar" : "en");
 
-  const welcomeMessage = isRTL
-    ? "مرحباً! أنا مساعد الجمال من لوريال مع إمكانية الوصول إلى أحدث اتجاهات الجمال ومعلومات المنتجات. اختر بعض المنتجات أعلاه واضغط على 'إنشاء روتين' للبدء، أو اسألني أي أسئلة متعلقة بالجمال!"
-    : "Hi! I'm your L'Oréal beauty assistant with access to current beauty trends and product information. Select some products above and click 'Generate Routine' to get started, or ask me any beauty-related questions!";
+  // Add initial welcome message only if no previous conversation
+  if (conversationHistory.length === 0) {
+    const welcomeMessage = isRTL
+      ? "مرحباً! أنا مساعد الجمال من لوريال مع إمكانية الوصول إلى أحدث اتجاهات الجمال ومعلومات المنتجات. اختر بعض المنتجات أعلاه واضغط على 'إنشاء روتين' للبدء، أو اسألني أي أسئلة متعلقة بالجمال!"
+      : "Hi! I'm your L'Oréal beauty assistant with access to current beauty trends and product information. Select some products above and click 'Generate Routine' to get started, or ask me any beauty-related questions!";
 
-  addMessageToChat("assistant", welcomeMessage);
+    addMessageToChat("assistant", welcomeMessage);
+    saveConversationHistory();
+  }
 });
