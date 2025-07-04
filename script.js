@@ -563,7 +563,6 @@ function hideAILoading() {
   }
 }
 
-/* Handle follow-up chat questions with web search */
 async function handleChatMessage(message) {
   // Add user message to chat
   addMessageToChat("user", message);
@@ -579,26 +578,57 @@ async function handleChatMessage(message) {
     content: message,
   });
 
+  // Detect obvious off-topic questions
+  const offTopicKeywords = [
+    "weather", "news", "politics", "sports", "movie", "music", "stocks",
+    "celebrity", "car", "gpt", "openai", "ai model", "game", "travel", "flight"
+  ];
+
+  const isOffTopic = offTopicKeywords.some((word) =>
+    message.toLowerCase().includes(word)
+  );
+
+  if (isOffTopic) {
+    hideAILoading();
+    const redirectMessage = isRTL
+      ? "أنا هنا لمساعدتك في الأسئلة المتعلقة بالجمال ومنتجات لوريال فقط. هل ترغب في مناقشة روتينك أو أي منتج محدد؟"
+      : "I'm here to help with beauty-related questions and L'Oréal products only. Would you like to discuss your routine or a specific product?";
+    addMessageToChat("assistant", redirectMessage);
+    return;
+  }
+
   try {
-    // Create context-aware prompt with web search capability
-    let systemPrompt = `You are a beauty and skincare expert assistant with access to current web information. Answer questions about beauty routines, skincare, haircare, makeup, fragrance, and related topics. Search for current information when relevant, especially for L'Oréal products. Keep responses helpful and concise. Include citations for any current information you find.`;
+    // Build context-aware system prompt
+    let systemPrompt = `You are a L'Oréal beauty assistant. 
+Only answer questions related to beauty routines, skincare, haircare, makeup, fragrance, or the selected L'Oréal products. 
+If the question is off-topic, remind the user to stay focused. 
+Keep answers concise, relevant, and grounded in product use. Include citations if using current sources.`;
 
     if (currentRoutine) {
-      systemPrompt += ` The user has generated a routine with these products: ${selectedProducts
-        .map((p) => p.name)
-        .join(
-          ", "
-        )}. You can reference this routine and these products in your answers.`;
+      systemPrompt += ` The user has generated a routine using the following products: ${selectedProducts
+        .map((p) => `${p.name} (${p.brand})`)
+        .join(", ")}. Focus your responses around these products and the routine.`;
     }
 
-    // Prepare messages for API (include conversation history)
+    // Build contextual messages with product reminder
+    const memory = conversationHistory.slice(-10).filter(msg => msg.role !== "system");
+
+    const memorySummary = memory.map((msg, index) => {
+      const speaker = msg.role === "user" ? "User" : "Assistant";
+      return `${speaker}: ${msg.content}`;
+    }).join("\n");
+
+    const contextReminder = {
+      role: "system",
+      content: `Ongoing conversation context:\n${memorySummary}`,
+    };
+
     const messages = [
       { role: "system", content: systemPrompt },
-      ...conversationHistory.slice(-6), // Keep last 6 messages for context
+      contextReminder,
       { role: "user", content: message },
     ];
 
-    // Make API call via Cloudflare Worker with web search
     const response = await fetch(
       "https://crimson-feather-5898.horseykate1129.workers.dev/",
       {
@@ -641,7 +671,7 @@ async function handleChatMessage(message) {
     const data = await response.json();
     const assistantMessage = data.choices[0].message.content;
 
-    // Hide loading indicator and add assistant response to chat
+    // Display assistant response
     hideAILoading();
     addMessageToChat("assistant", assistantMessage);
 
@@ -667,10 +697,7 @@ chatForm.addEventListener("submit", (e) => {
   const message = userInput.value.trim();
   if (!message) return;
 
-  // Clear input
   userInput.value = "";
-
-  // Handle the message
   handleChatMessage(message);
 });
 
@@ -680,12 +707,9 @@ generateRoutineBtn.addEventListener("click", generateRoutine);
 /* Initialize the app */
 document.addEventListener("DOMContentLoaded", () => {
   loadSelectedProductsFromStorage();
-  loadRTLPreference(); // This now includes auto-detection
-
-  // Apply initial language settings to interface
+  loadRTLPreference();
   updateInterfaceLanguage(isRTL ? "ar" : "en");
 
-  // Add initial welcome message (language-appropriate)
   const welcomeMessage = isRTL
     ? "مرحباً! أنا مساعد الجمال من لوريال مع إمكانية الوصول إلى أحدث اتجاهات الجمال ومعلومات المنتجات. اختر بعض المنتجات أعلاه واضغط على 'إنشاء روتين' للبدء، أو اسألني أي أسئلة متعلقة بالجمال!"
     : "Hi! I'm your L'Oréal beauty assistant with access to current beauty trends and product information. Select some products above and click 'Generate Routine' to get started, or ask me any beauty-related questions!";
